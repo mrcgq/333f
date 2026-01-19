@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <stdbool.h>  // <--- 必须添加这一行！！！
 
 #define V3_PORT         51820
 #define BUF_SIZE        1500
