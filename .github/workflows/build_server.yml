@@ -1,0 +1,103 @@
+
+name: Build All v3 Versions
+
+on:
+  push:
+    branches: [ "main" ]
+  release:
+    types: [ created ]
+  workflow_dispatch:
+
+jobs:
+  build-all-versions:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc clang make liburing-dev libsodium-dev \
+                                libbpf-dev libssl-dev musl-tools
+
+    - name: Build v5 Enterprise (Generic)
+      run: |
+        gcc -O3 -march=x86-64 -flto -fno-plt -fno-omit-frame-pointer \
+          -o v3_server_v5_generic \
+          src/v3_ultimate_optimized.c src/v3_fec_simd.c \
+          src/v3_pacing_adaptive.c src/v3_antidetect_mtu.c \
+          src/v3_cpu_dispatch.c src/v3_health.c \
+          -luring -lsodium -lpthread -lbpf
+
+    - name: Build v5 Enterprise (AVX2)
+      run: |
+        gcc -O3 -march=x86-64-v3 -flto \
+          -o v3_server_v5_avx2 \
+          src/v3_ultimate_optimized.c src/v3_fec_simd.c \
+          src/v3_pacing_adaptive.c src/v3_antidetect_mtu.c \
+          src/v3_cpu_dispatch.c src/v3_health.c \
+          -luring -lsodium -lpthread -lbpf
+
+    - name: Build v5 Enterprise (AVX-512)
+      run: |
+        gcc -O3 -march=x86-64-v4 -flto \
+          -o v3_server_v5_avx512 \
+          src/v3_ultimate_optimized.c src/v3_fec_simd.c \
+          src/v3_pacing_adaptive.c src/v3_antidetect_mtu.c \
+          src/v3_cpu_dispatch.c src/v3_health.c \
+          -luring -lsodium -lpthread -lbpf
+
+    - name: Build v6 Portable
+      run: |
+        musl-gcc -O3 -static -s \
+          -o v3_server_v6_portable \
+          src/v3_portable.c \
+          -lpthread
+
+    - name: Build v7 Rescue
+      run: |
+        gcc -O3 \
+          -o v3_server_v7_rescue \
+          src/v3_ws_server.c \
+          -lssl -lcrypto -lpthread
+
+    - name: Build v8 Turbo
+      run: |
+        gcc -O3 -march=x86-64 -flto -fno-plt -fno-omit-frame-pointer -Wl,-O1,--as-needed \
+          -o v3_server_v8_turbo \
+          src/v3_turbo.c src/v3_cpu_dispatch.c \
+          -luring -lpthread
+
+    - name: Build v9 Turbo-Portable
+      run: |
+        musl-gcc -O3 -static -s \
+          -o v3_server_v9_turbo_portable \
+          src/v3_turbo_portable.c \
+          -lpthread
+
+    - name: Build XDP Object
+      run: |
+        clang -O2 -target bpf \
+          -I/usr/include/x86_64-linux-gnu \
+          -I/usr/include/bpf \
+          -I/usr/include \
+          -c bpf/v3_xdp.c -o v3_xdp.o
+
+    - name: Upload All Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: v3-complete-suite
+        path: |
+          v3_server_v5_generic
+          v3_server_v5_avx2
+          v3_server_v5_avx512
+          v3_server_v6_portable
+          v3_server_v7_rescue
+          v3_server_v8_turbo
+          v3_server_v9_turbo_portable
+          v3_xdp.o
+          scripts/install_v3.sh
+		  
+		  
+		  
